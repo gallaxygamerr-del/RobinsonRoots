@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "robinson-roots",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "C:\\Users\\galla\\robinson-roots", "-p", "3456", "--no-clipboard"],
+      "port": 3456
+    }
+  ]
+}
