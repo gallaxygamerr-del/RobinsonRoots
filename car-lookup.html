@@ -1,0 +1,1073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CarLens — AI Car Intelligence</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #07070f;
+      --surface: rgba(255,255,255,0.035);
+      --surface-hi: rgba(255,255,255,0.06);
+      --border: rgba(255,255,255,0.07);
+      --border-hi: rgba(255,255,255,0.14);
+      --text: #ededf5;
+      --text-2: rgba(237,237,245,0.55);
+      --text-3: rgba(237,237,245,0.3);
+      --accent: #4facfe;
+      --accent-2: #a78bfa;
+      --grad: linear-gradient(135deg, #4facfe 0%, #a78bfa 100%);
+      --grad-r: linear-gradient(135deg, #a78bfa 0%, #4facfe 100%);
+      --ok: #30d158;
+      --warn: #ffd60a;
+      --bad: #ff453a;
+      --r-hero: 28px;
+      --r-card: 20px;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── ambient background ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 70% 5%, rgba(79,172,254,.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 15% 85%, rgba(167,139,250,.06) 0%, transparent 55%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrap {
+      max-width: 820px;
+      margin: 0 auto;
+      padding: 0 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Header ── */
+    .header {
+      padding: 56px 0 44px;
+      text-align: center;
+    }
+    .logo-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(79,172,254,.08);
+      border: 1px solid rgba(79,172,254,.2);
+      border-radius: 50px;
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 18px;
+    }
+    .logo-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--grad);
+    }
+    h1 {
+      font-size: clamp(30px, 6vw, 52px);
+      font-weight: 700;
+      letter-spacing: -.03em;
+      line-height: 1.08;
+      margin-bottom: 12px;
+    }
+    .subtitle {
+      color: var(--text-2);
+      font-size: 16px;
+      font-weight: 400;
+    }
+
+    /* ── API Key ── */
+    .apikey-bar {
+      margin-bottom: 20px;
+    }
+    .apikey-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: none;
+      color: var(--text-2);
+      font-size: 13px;
+      cursor: pointer;
+      padding: 7px 0;
+      font-family: inherit;
+      transition: color .2s;
+    }
+    .apikey-toggle:hover { color: var(--text); }
+    .chevron {
+      font-size: 11px;
+      transition: transform .22s ease;
+      display: inline-block;
+    }
+    .apikey-toggle.open .chevron { transform: rotate(90deg); }
+    .apikey-body { display: none; margin-top: 10px; }
+    .apikey-body.show {
+      display: block;
+      animation: slideDown .22s ease;
+    }
+    .key-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .g-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: 13px;
+      padding: 13px 16px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      transition: border-color .2s, background .2s, box-shadow .2s;
+    }
+    .g-input:focus {
+      border-color: var(--accent);
+      background: rgba(79,172,254,.04);
+      box-shadow: 0 0 0 3px rgba(79,172,254,.1);
+    }
+    .g-input::placeholder { color: var(--text-3); }
+    .icon-btn {
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: 12px;
+      color: var(--text-2);
+      width: 44px; height: 44px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      font-size: 17px;
+      transition: all .2s;
+      flex-shrink: 0;
+    }
+    .icon-btn:hover { background: var(--surface-hi); color: var(--text); }
+
+    /* ── Search ── */
+    .search-section { margin-bottom: 44px; }
+    .search-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .search-wrap {
+      flex: 1;
+      position: relative;
+    }
+    .search-icon {
+      position: absolute;
+      left: 19px; top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      opacity: .4;
+    }
+    .search-icon svg { display: block; }
+    .search-input {
+      width: 100%;
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border-hi);
+      border-radius: 50px;
+      padding: 17px 22px 17px 52px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 16px;
+      outline: none;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      transition: border-color .25s, background .25s, box-shadow .25s;
+    }
+    .search-input:focus {
+      border-color: var(--accent);
+      background: rgba(79,172,254,.04);
+      box-shadow: 0 0 0 4px rgba(79,172,254,.1), 0 10px 40px rgba(0,0,0,.4);
+    }
+    .search-input::placeholder { color: var(--text-3); }
+    .search-btn {
+      background: var(--grad);
+      border: none;
+      border-radius: 50px;
+      color: #fff;
+      padding: 17px 30px;
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: transform .18s ease, box-shadow .18s ease, opacity .18s;
+      box-shadow: 0 4px 24px rgba(79,172,254,.28);
+      letter-spacing: -.01em;
+    }
+    .search-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 36px rgba(79,172,254,.38);
+    }
+    .search-btn:active:not(:disabled) {
+      transform: translateY(0);
+      box-shadow: 0 2px 12px rgba(79,172,254,.28);
+    }
+    .search-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+    /* ── Loading ── */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 80px 0 60px;
+    }
+    .loading.show { display: block; animation: fadeIn .3s ease; }
+    .spin-wrap {
+      position: relative;
+      width: 64px; height: 64px;
+      margin: 0 auto 22px;
+    }
+    .spinner {
+      width: 64px; height: 64px;
+      border: 2px solid rgba(255,255,255,.05);
+      border-top-color: var(--accent);
+      border-right-color: var(--accent-2);
+      border-radius: 50%;
+      animation: spin .9s linear infinite;
+    }
+    .spin-glow {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(79,172,254,.18) 0%, transparent 70%);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    .loading-text {
+      color: var(--text-2);
+      font-size: 15px;
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+
+    /* ── Error ── */
+    .err-card {
+      display: none;
+      background: rgba(255,69,58,.07);
+      border: 1px solid rgba(255,69,58,.22);
+      border-radius: var(--r-card);
+      padding: 28px 24px;
+      text-align: center;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      margin-bottom: 24px;
+    }
+    .err-card.show { display: block; animation: fadeSlideUp .35s ease; }
+    .err-icon { font-size: 30px; margin-bottom: 10px; }
+    .err-title { font-size: 16px; font-weight: 600; color: var(--bad); margin-bottom: 7px; }
+    .err-msg { font-size: 14px; color: var(--text-2); line-height: 1.5; }
+
+    /* ── Result ── */
+    .result { display: none; }
+    .result.show { display: block; animation: fadeSlideUp .45s ease; }
+
+    /* ── Car Hero Card ── */
+    .car-hero {
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: var(--r-hero);
+      padding: 36px;
+      margin-bottom: 16px;
+      backdrop-filter: blur(32px);
+      -webkit-backdrop-filter: blur(32px);
+      position: relative;
+      overflow: hidden;
+    }
+    .car-hero::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, rgba(79,172,254,.5) 50%, transparent 100%);
+    }
+    .car-hero::after {
+      content: '';
+      position: absolute;
+      top: -120px; right: -80px;
+      width: 300px; height: 300px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(79,172,254,.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .car-year-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(79,172,254,.1);
+      border: 1px solid rgba(79,172,254,.25);
+      border-radius: 50px;
+      padding: 5px 13px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 15px;
+    }
+    .car-name {
+      font-size: clamp(26px, 5vw, 44px);
+      font-weight: 700;
+      letter-spacing: -.025em;
+      line-height: 1.1;
+      margin-bottom: 7px;
+    }
+    .car-trim-line {
+      color: var(--text-2);
+      font-size: 16px;
+      margin-bottom: 28px;
+    }
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+    .hero-stat {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px 12px;
+      text-align: center;
+    }
+    .hs-val {
+      font-size: clamp(18px, 3vw, 24px);
+      font-weight: 700;
+      letter-spacing: -.02em;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 5px;
+      line-height: 1.1;
+    }
+    .hs-lbl {
+      font-size: 10px;
+      color: var(--text-2);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+    }
+
+    /* ── Section Grid ── */
+    .sg { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .sg.full { grid-template-columns: 1fr; }
+
+    /* ── Info Card ── */
+    .ic {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-card);
+      padding: 24px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: border-color .2s;
+    }
+    .ic:hover { border-color: var(--border-hi); }
+
+    .ch {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin-bottom: 18px;
+    }
+    .ci {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      background: linear-gradient(135deg, rgba(79,172,254,.12), rgba(167,139,250,.12));
+      border: 1px solid rgba(79,172,254,.18);
+      flex-shrink: 0;
+    }
+    .ct {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--text-2);
+    }
+
+    .dr {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+      gap: 12px;
+    }
+    .dr:last-child { border-bottom: none; padding-bottom: 0; }
+    .dr:first-child { padding-top: 0; }
+    .dl { font-size: 13px; color: var(--text-2); flex-shrink: 0; }
+    .dv { font-size: 13px; font-weight: 600; color: var(--text); text-align: right; }
+
+    /* ── Price display ── */
+    .price-lbl {
+      font-size: 11px;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-bottom: 4px;
+    }
+    .price-big {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -.025em;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 14px;
+    }
+
+    /* ── Resale bars ── */
+    .resale-rows { display: flex; flex-direction: column; gap: 14px; }
+    .resale-row { display: flex; align-items: center; gap: 12px; }
+    .r-lbl { font-size: 12px; color: var(--text-2); width: 52px; flex-shrink: 0; }
+    .r-track {
+      flex: 1;
+      height: 6px;
+      background: rgba(255,255,255,.06);
+      border-radius: 50px;
+      overflow: hidden;
+    }
+    .r-fill {
+      height: 100%;
+      border-radius: 50px;
+      background: var(--grad);
+      width: 0%;
+      transition: width .9s cubic-bezier(.22,1,.36,1);
+    }
+    .r-val { font-size: 12px; font-weight: 600; color: var(--text); width: 68px; text-align: right; flex-shrink: 0; }
+
+    /* ── Problem & Fact lists ── */
+    .prob-list, .fact-list { list-style: none; }
+    .prob-list li, .fact-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,.04);
+      font-size: 14px;
+      color: var(--text-2);
+      line-height: 1.55;
+    }
+    .prob-list li:last-child, .fact-list li:last-child { border-bottom: none; padding-bottom: 0; }
+    .prob-list li:first-child, .fact-list li:first-child { padding-top: 0; }
+    .prob-bull { color: var(--warn); flex-shrink: 0; font-size: 13px; margin-top: 1px; }
+    .fact-bull {
+      flex-shrink: 0;
+      font-size: 10px;
+      margin-top: 3px;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 36px 0 56px;
+      color: var(--text-3);
+      font-size: 13px;
+    }
+
+    /* ── Animations ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .45; }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(22px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 580px) {
+      .header { padding: 38px 0 32px; }
+      .sg { grid-template-columns: 1fr; }
+      .hero-stats { grid-template-columns: repeat(3, 1fr); }
+      .car-hero { padding: 24px 20px; }
+      .search-btn { padding: 17px 22px; font-size: 14px; }
+      .ic { padding: 20px; }
+    }
+    @media (max-width: 360px) {
+      .hero-stats { grid-template-columns: 1fr; }
+      .hs-val { font-size: 22px; }
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-pill">
+      <div class="logo-dot"></div>
+      CarLens AI
+    </div>
+    <h1>Know Your Car<br>Inside &amp; Out</h1>
+    <p class="subtitle">AI-powered vehicle intelligence, instantly</p>
+  </div>
+
+  <!-- API Key -->
+  <div class="apikey-bar">
+    <button class="apikey-toggle" id="keyToggle">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="5"/><line x1="12" y1="11.5" x2="22" y2="2"/><line x1="19" y1="2" x2="22" y2="5"/><line x1="16" y1="5" x2="18.5" y2="7.5"/></svg>
+      API Key
+      <span class="chevron">›</span>
+    </button>
+    <div class="apikey-body" id="keyBody">
+      <div class="key-row">
+        <input
+          type="password"
+          class="g-input"
+          id="keyInput"
+          placeholder="Paste your Anthropic API key (sk-ant-…)"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <button class="icon-btn" id="keyVis" title="Show / hide key" aria-label="Toggle key visibility">
+          <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Search -->
+  <div class="search-section">
+    <div class="search-row">
+      <div class="search-wrap">
+        <span class="search-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <input
+          type="text"
+          class="search-input"
+          id="searchInput"
+          placeholder='Try "2024 Lamborghini Urus" or "Tesla Model S Plaid"'
+          autocomplete="off"
+          autocorrect="off"
+          spellcheck="false"
+        />
+      </div>
+      <button class="search-btn" id="searchBtn">Look Up</button>
+    </div>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading">
+    <div class="spin-wrap">
+      <div class="spinner"></div>
+      <div class="spin-glow"></div>
+    </div>
+    <div class="loading-text" id="loadTxt">Analyzing vehicle data…</div>
+  </div>
+
+  <!-- Error -->
+  <div class="err-card" id="errCard">
+    <div class="err-icon">⚡</div>
+    <div class="err-title">Something went wrong</div>
+    <div class="err-msg" id="errMsg">Please try again.</div>
+  </div>
+
+  <!-- Result -->
+  <div class="result" id="result">
+
+    <!-- Hero -->
+    <div class="car-hero">
+      <div class="car-year-badge">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="rYear"></span>
+      </div>
+      <div class="car-name" id="rName"></div>
+      <div class="car-trim-line" id="rTrim"></div>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hs-val" id="rHp">—</div>
+          <div class="hs-lbl">Horsepower</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hs-val" id="rZero">—</div>
+          <div class="hs-lbl">0 – 60 mph</div>
+        </div>
+        <div class="hero-stat">
+          <div class="hs-val" id="rSpeed">—</div>
+          <div class="hs-lbl">Top Speed</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Engine + Performance -->
+    <div class="sg">
+      <div class="ic">
+        <div class="ch"><div class="ci">🔧</div><div class="ct">Engine</div></div>
+        <div class="dr"><span class="dl">Displacement</span><span class="dv" id="rDisp">—</span></div>
+        <div class="dr"><span class="dl">Configuration</span><span class="dv" id="rCyl">—</span></div>
+        <div class="dr"><span class="dl">Horsepower</span><span class="dv" id="rHpFull">—</span></div>
+        <div class="dr"><span class="dl">Torque</span><span class="dv" id="rTorque">—</span></div>
+      </div>
+      <div class="ic">
+        <div class="ch"><div class="ci">⚡</div><div class="ct">Performance</div></div>
+        <div class="dr"><span class="dl">0 – 60 mph</span><span class="dv" id="rZ60">—</span></div>
+        <div class="dr"><span class="dl">Top Speed</span><span class="dv" id="rTopSpd">—</span></div>
+        <div class="dr"><span class="dl">Quarter Mile</span><span class="dv" id="rQmi">—</span></div>
+        <div class="dr"><span class="dl">Drivetrain</span><span class="dv" id="rDrivetrain">—</span></div>
+      </div>
+    </div>
+
+    <!-- Drivetrain + Efficiency -->
+    <div class="sg">
+      <div class="ic">
+        <div class="ch"><div class="ci">⚙️</div><div class="ct">Drivetrain</div></div>
+        <div class="dr"><span class="dl">Transmission</span><span class="dv" id="rTrans">—</span></div>
+        <div class="dr"><span class="dl">Drive Type</span><span class="dv" id="rDrive">—</span></div>
+        <div class="dr"><span class="dl">Fuel Type</span><span class="dv" id="rFuel">—</span></div>
+      </div>
+      <div class="ic">
+        <div class="ch"><div class="ci">⛽</div><div class="ct">Efficiency</div></div>
+        <div class="dr"><span class="dl">City</span><span class="dv" id="rMpgCity">—</span></div>
+        <div class="dr"><span class="dl">Highway</span><span class="dv" id="rMpgHwy">—</span></div>
+        <div class="dr"><span class="dl">Combined</span><span class="dv" id="rMpgCmb">—</span></div>
+      </div>
+    </div>
+
+    <!-- Dimensions + Capacity & Safety -->
+    <div class="sg">
+      <div class="ic">
+        <div class="ch"><div class="ci">📐</div><div class="ct">Dimensions</div></div>
+        <div class="dr"><span class="dl">Length</span><span class="dv" id="rLen">—</span></div>
+        <div class="dr"><span class="dl">Width</span><span class="dv" id="rWid">—</span></div>
+        <div class="dr"><span class="dl">Height</span><span class="dv" id="rHgt">—</span></div>
+        <div class="dr"><span class="dl">Wheelbase</span><span class="dv" id="rWb">—</span></div>
+        <div class="dr"><span class="dl">Curb Weight</span><span class="dv" id="rWgt">—</span></div>
+      </div>
+      <div class="ic">
+        <div class="ch"><div class="ci">🛡️</div><div class="ct">Safety &amp; Ratings</div></div>
+        <div class="dr"><span class="dl">Seating</span><span class="dv" id="rSeats">—</span></div>
+        <div class="dr"><span class="dl">Reliability</span><span class="dv" id="rReli">—</span></div>
+        <div class="dr"><span class="dl">NHTSA</span><span class="dv" id="rNhtsa">—</span></div>
+        <div class="dr"><span class="dl">IIHS</span><span class="dv" id="rIihs">—</span></div>
+      </div>
+    </div>
+
+    <!-- Pricing + Annual Costs -->
+    <div class="sg">
+      <div class="ic">
+        <div class="ch"><div class="ci">💰</div><div class="ct">Pricing</div></div>
+        <div class="price-lbl">Starting MSRP</div>
+        <div class="price-big" id="rMsrp">—</div>
+        <div class="dr"><span class="dl">Market Value</span><span class="dv" id="rMktVal">—</span></div>
+        <div class="dr"><span class="dl">Depreciation</span><span class="dv" id="rDepr">—</span></div>
+      </div>
+      <div class="ic">
+        <div class="ch"><div class="ci">📊</div><div class="ct">Annual Costs</div></div>
+        <div class="dr"><span class="dl">Maintenance</span><span class="dv" id="rMaint">—</span></div>
+        <div class="dr"><span class="dl">Insurance Est.</span><span class="dv" id="rIns">—</span></div>
+      </div>
+    </div>
+
+    <!-- Resale Value -->
+    <div class="sg full">
+      <div class="ic">
+        <div class="ch"><div class="ci">📈</div><div class="ct">Resale Value Retention</div></div>
+        <div class="resale-rows">
+          <div class="resale-row">
+            <span class="r-lbl">3 Years</span>
+            <div class="r-track"><div class="r-fill" id="rFill3"></div></div>
+            <span class="r-val" id="rResale3">—</span>
+          </div>
+          <div class="resale-row">
+            <span class="r-lbl">5 Years</span>
+            <div class="r-track"><div class="r-fill" id="rFill5"></div></div>
+            <span class="r-val" id="rResale5">—</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Known Issues -->
+    <div class="sg full">
+      <div class="ic">
+        <div class="ch"><div class="ci">⚠️</div><div class="ct">Known Issues &amp; Common Problems</div></div>
+        <ul class="prob-list" id="rProbs"></ul>
+      </div>
+    </div>
+
+    <!-- Fun Facts -->
+    <div class="sg full">
+      <div class="ic">
+        <div class="ch"><div class="ci">✨</div><div class="ct">Legacy &amp; Fun Facts</div></div>
+        <ul class="fact-list" id="rFacts"></ul>
+      </div>
+    </div>
+
+  </div><!-- /result -->
+
+  <footer>CarLens · Powered by Claude AI · Specifications may vary by trim, region, and model year</footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Element refs ── */
+  const $ = id => document.getElementById(id);
+  const keyToggle   = $('keyToggle');
+  const keyBody     = $('keyBody');
+  const keyInput    = $('keyInput');
+  const keyVis      = $('keyVis');
+  const eyeIcon     = $('eyeIcon');
+  const searchInput = $('searchInput');
+  const searchBtn   = $('searchBtn');
+  const loading     = $('loading');
+  const loadTxt     = $('loadTxt');
+  const errCard     = $('errCard');
+  const errMsg      = $('errMsg');
+  const result      = $('result');
+
+  /* ── API key toggle ── */
+  keyToggle.addEventListener('click', () => {
+    keyToggle.classList.toggle('open');
+    keyBody.classList.toggle('show');
+    if (keyBody.classList.contains('show')) keyInput.focus();
+  });
+
+  /* ── Show / hide key ── */
+  const eyeOpen  = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+  const eyeSlash = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+  keyVis.addEventListener('click', () => {
+    const isPw = keyInput.type === 'password';
+    keyInput.type = isPw ? 'text' : 'password';
+    eyeIcon.innerHTML = isPw ? eyeSlash : eyeOpen;
+  });
+
+  /* ── Search triggers ── */
+  searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') lookupCar(); });
+  searchBtn.addEventListener('click', lookupCar);
+
+  /* ── Helpers ── */
+  function set(id, val, fallback = '—') {
+    const el = $(id);
+    if (el) el.textContent = (val && String(val).trim()) ? val : fallback;
+  }
+
+  function showErr(msg) {
+    loading.classList.remove('show');
+    errCard.classList.add('show');
+    errMsg.textContent = msg;
+    result.classList.remove('show');
+  }
+
+  function hideAll() {
+    loading.classList.remove('show');
+    errCard.classList.remove('show');
+    result.classList.remove('show');
+  }
+
+  const loadMsgs = [
+    'Analyzing vehicle data…',
+    'Consulting the oracle…',
+    'Processing specifications…',
+    'Fetching performance metrics…',
+    'Compiling car intelligence…',
+    'Cross-referencing databases…'
+  ];
+  let loadInterval = null;
+
+  function startLoading() {
+    hideAll();
+    loading.classList.add('show');
+    let i = 0;
+    loadTxt.textContent = loadMsgs[0];
+    loadInterval = setInterval(() => {
+      i = (i + 1) % loadMsgs.length;
+      loadTxt.textContent = loadMsgs[i];
+    }, 1300);
+  }
+
+  function stopLoading() {
+    clearInterval(loadInterval);
+    loading.classList.remove('show');
+  }
+
+  function pctFromStr(str) {
+    if (!str) return 55;
+    const m = str.match(/(\d+)\s*%/);
+    if (m) return Math.min(100, parseInt(m[1]));
+    const n = str.match(/(\d+)/);
+    return n ? Math.min(100, parseInt(n[1])) : 55;
+  }
+
+  function renderResult(d) {
+    /* Hero */
+    set('rYear', d.year);
+    set('rName', [d.make, d.model].filter(Boolean).join(' '));
+    set('rTrim', d.trim || 'Base / Standard Trim');
+    set('rHp', d.engine?.horsepower);
+    set('rZero', d.performance?.zero_to_sixty);
+    set('rSpeed', d.performance?.top_speed);
+
+    /* Engine */
+    set('rDisp', d.engine?.displacement);
+    set('rCyl', d.engine?.cylinders);
+    set('rHpFull', d.engine?.horsepower);
+    set('rTorque', d.engine?.torque);
+
+    /* Performance */
+    set('rZ60', d.performance?.zero_to_sixty);
+    set('rTopSpd', d.performance?.top_speed);
+    set('rQmi', d.performance?.quarter_mile);
+    set('rDrivetrain', d.drivetrain);
+
+    /* Drivetrain */
+    set('rTrans', d.transmission);
+    set('rDrive', d.drivetrain);
+    set('rFuel', d.fuel_type);
+
+    /* Fuel */
+    const city = d.mpg?.city, hwy = d.mpg?.highway;
+    set('rMpgCity', city ? city + ' mpg' : (d.mpg?.city || '—'));
+    set('rMpgHwy', hwy ? hwy + ' mpg' : (d.mpg?.highway || '—'));
+    const cmb = d.mpg?.combined || (city && hwy ? Math.round((parseFloat(city)+parseFloat(hwy))/2)+' mpg' : null);
+    set('rMpgCmb', cmb || '—');
+
+    /* Dimensions */
+    set('rLen', d.dimensions?.length);
+    set('rWid', d.dimensions?.width);
+    set('rHgt', d.dimensions?.height);
+    set('rWb', d.dimensions?.wheelbase);
+    set('rWgt', d.dimensions?.weight);
+
+    /* Safety & Ratings */
+    set('rSeats', d.seating_capacity ? d.seating_capacity + ' passengers' : '—');
+    set('rReli', d.reliability_score);
+    set('rNhtsa', d.safety_ratings?.nhtsa);
+    set('rIihs', d.safety_ratings?.iihs);
+
+    /* Pricing */
+    set('rMsrp', d.msrp);
+    set('rMktVal', d.market_value_range);
+    set('rDepr', d.depreciation_rate);
+
+    /* Costs */
+    set('rMaint', d.maintenance_cost_annual);
+    set('rIns', d.insurance_cost_estimate);
+
+    /* Resale */
+    const r3 = d.resale_value?.three_years, r5 = d.resale_value?.five_years;
+    set('rResale3', r3);
+    set('rResale5', r5);
+    setTimeout(() => {
+      $('rFill3').style.width = pctFromStr(r3) + '%';
+      $('rFill5').style.width = pctFromStr(r5) + '%';
+    }, 80);
+
+    /* Problems */
+    const probEl = $('rProbs');
+    probEl.innerHTML = '';
+    const probs = Array.isArray(d.common_problems) ? d.common_problems : [];
+    if (probs.length === 0) {
+      probEl.innerHTML = '<li><span class="prob-bull" style="color:var(--ok)">✓</span> No major known issues reported for this model</li>';
+    } else {
+      probs.forEach(p => {
+        const li = document.createElement('li');
+        li.innerHTML = '<span class="prob-bull">⚠</span>';
+        li.appendChild(document.createTextNode(p));
+        probEl.appendChild(li);
+      });
+    }
+
+    /* Facts */
+    const factEl = $('rFacts');
+    factEl.innerHTML = '';
+    const facts = Array.isArray(d.fun_facts) ? d.fun_facts : [];
+    facts.forEach(f => {
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="fact-bull">✦</span>';
+      li.appendChild(document.createTextNode(f));
+      factEl.appendChild(li);
+    });
+
+    stopLoading();
+    result.classList.add('show');
+    result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  /* ── Main lookup ── */
+  async function lookupCar() {
+    const query = searchInput.value.trim();
+    const key   = keyInput.value.trim();
+
+    if (!query) { searchInput.focus(); return; }
+
+    if (!key) {
+      keyToggle.classList.add('open');
+      keyBody.classList.add('show');
+      setTimeout(() => keyInput.focus(), 50);
+      showErr('Please enter your Anthropic API key to continue.');
+      return;
+    }
+
+    searchBtn.disabled = true;
+    startLoading();
+
+    const prompt = `You are an expert automotive database. The user searched for: "${query}"
+
+Identify the most likely car (year, make, model) and return ONLY a valid JSON object — no markdown fences, no explanation, just raw JSON — with this exact structure:
+
+{
+  "make": "Manufacturer name",
+  "model": "Model name",
+  "year": "Year as string",
+  "trim": "Most common or base trim level",
+  "engine": {
+    "displacement": "e.g. 4.0L twin-turbo V8  |  N/A for electric",
+    "cylinders": "e.g. V8  |  Electric Motor(s)",
+    "horsepower": "e.g. 641 hp",
+    "torque": "e.g. 627 lb-ft"
+  },
+  "performance": {
+    "zero_to_sixty": "e.g. 3.6 sec",
+    "top_speed": "e.g. 190 mph",
+    "quarter_mile": "e.g. 11.5 sec @ 124 mph"
+  },
+  "transmission": "e.g. 8-speed automatic",
+  "drivetrain": "e.g. AWD",
+  "fuel_type": "e.g. Premium Gasoline  |  Electric  |  Plug-in Hybrid",
+  "mpg": {
+    "city": "numeric string e.g. 17  |  N/A for electric",
+    "highway": "numeric string e.g. 22  |  N/A for electric",
+    "combined": "e.g. 19 mpg  |  or equivalent MPGe for EVs"
+  },
+  "dimensions": {
+    "length": "e.g. 201.9 in",
+    "width": "e.g. 78.5 in",
+    "height": "e.g. 65.3 in",
+    "wheelbase": "e.g. 118.4 in",
+    "weight": "e.g. 4,844 lbs"
+  },
+  "seating_capacity": "5",
+  "msrp": "e.g. $229,495",
+  "market_value_range": "e.g. $215,000 – $260,000",
+  "depreciation_rate": "e.g. ~14% per year (first 3 years)",
+  "reliability_score": "e.g. 3.5/5 (J.D. Power)",
+  "safety_ratings": {
+    "nhtsa": "e.g. 5-Star Overall",
+    "iihs": "e.g. Top Safety Pick+"
+  },
+  "common_problems": [
+    "Specific known issue 1 with brief explanation",
+    "Specific known issue 2",
+    "Specific known issue 3"
+  ],
+  "maintenance_cost_annual": "e.g. ~$1,800/year",
+  "insurance_cost_estimate": "e.g. ~$3,400/year",
+  "resale_value": {
+    "three_years": "62% of original value (~$142,000)",
+    "five_years": "45% of original value (~$103,000)"
+  },
+  "fun_facts": [
+    "Interesting legacy or production fact",
+    "Interesting design or engineering detail",
+    "Notable record, award, or cultural impact",
+    "Surprising or lesser-known fact about this model"
+  ]
+}
+
+If the query is completely unrecognizable or not a car at all, return:
+{"error": true, "message": "Descriptive reason why"}
+
+Use real, accurate data. For electric vehicles use N/A for MPG city/highway and provide MPGe in combined. Return ONLY the JSON.`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': key,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1800,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
+
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try { const j = await res.json(); detail = j?.error?.message || detail; } catch (_) {}
+        if (res.status === 401)      showErr('Invalid API key. Double-check your Anthropic API key and try again.');
+        else if (res.status === 429) showErr('Rate limit reached. Wait a moment and try again.');
+        else if (res.status === 400) showErr('Bad request: ' + detail);
+        else                         showErr('API error: ' + detail);
+        searchBtn.disabled = false;
+        return;
+      }
+
+      const json    = await res.json();
+      const rawText = json?.content?.[0]?.text || '';
+
+      /* Extract JSON — handle possible markdown fences */
+      let carData;
+      try {
+        const fenced = rawText.match(/```(?:json)?\s*([\s\S]*?)```/);
+        const jsonStr = fenced ? fenced[1] : rawText.match(/(\{[\s\S]*\})/)?.[1] || rawText;
+        carData = JSON.parse(jsonStr.trim());
+      } catch (_) {
+        showErr('Could not parse response. Try rephrasing your search (e.g. "2024 Ford Mustang GT500").');
+        searchBtn.disabled = false;
+        return;
+      }
+
+      if (carData.error) {
+        showErr(carData.message || 'Car not recognized. Try a more specific query like "2022 Porsche 911 GT3".');
+        searchBtn.disabled = false;
+        return;
+      }
+
+      renderResult(carData);
+
+    } catch (err) {
+      stopLoading();
+      if (err instanceof TypeError) {
+        showErr('Network error. Check your internet connection and try again.');
+      } else {
+        showErr('Unexpected error: ' + err.message);
+      }
+    }
+
+    searchBtn.disabled = false;
+  }
+})();
+</script>
+</body>
+</html>
