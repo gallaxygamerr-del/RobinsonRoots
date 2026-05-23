@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#07070f" />
+  <title>CarLens</title>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #07070f;
+      --nav-bg: rgba(7,7,15,0.82);
+      --surface: rgba(255,255,255,0.04);
+      --surface-hi: rgba(255,255,255,0.07);
+      --border: rgba(255,255,255,0.07);
+      --border-hi: rgba(255,255,255,0.13);
+      --text: #ededf5;
+      --text-2: rgba(237,237,245,0.55);
+      --text-3: rgba(237,237,245,0.28);
+      --accent: #4facfe;
+      --accent-2: #a78bfa;
+      --grad: linear-gradient(135deg, #4facfe 0%, #a78bfa 100%);
+      --ok: #30d158;
+      --warn: #ffd60a;
+      --bad: #ff453a;
+      --safe-top: env(safe-area-inset-top, 44px);
+      --safe-bot: env(safe-area-inset-bottom, 20px);
+      --safe-l: env(safe-area-inset-left, 0px);
+      --safe-r: env(safe-area-inset-right, 0px);
+    }
+
+    html, body {
+      height: 100%;
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-text-size-adjust: 100%;
+      user-select: none;
+      touch-action: pan-y;
+    }
+
+    /* ── Ambient glow ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 55% at 70% 5%, rgba(79,172,254,.08) 0%, transparent 60%),
+        radial-gradient(ellipse 55% 45% at 15% 90%, rgba(167,139,250,.07) 0%, transparent 55%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Sticky nav bar ── */
+    .navbar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding-top: var(--safe-top);
+      padding-left: var(--safe-l);
+      padding-right: var(--safe-r);
+      background: var(--nav-bg);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px 13px;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+    .nav-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--grad);
+      flex-shrink: 0;
+    }
+    .nav-name {
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -.02em;
+      background: var(--grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nav-search-wrap {
+      flex: 1;
+      position: relative;
+    }
+    .nav-search-icon {
+      position: absolute;
+      left: 13px; top: 50%;
+      transform: translateY(-50%);
+      pointer-events: none;
+      opacity: .38;
+    }
+    .nav-search {
+      width: 100%;
+      background: rgba(255,255,255,.07);
+      border: 1px solid var(--border-hi);
+      border-radius: 12px;
+      padding: 10px 12px 10px 38px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 15px;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      transition: border-color .2s, background .2s, box-shadow .2s;
+    }
+    .nav-search:focus {
+      border-color: var(--accent);
+      background: rgba(79,172,254,.06);
+      box-shadow: 0 0 0 3px rgba(79,172,254,.12);
+    }
+    .nav-search::placeholder { color: var(--text-3); }
+    .go-btn {
+      background: var(--grad);
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 10px 15px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: opacity .15s, transform .15s;
+      -webkit-tap-highlight-color: transparent;
+      min-width: 52px;
+      text-align: center;
+    }
+    .go-btn:active:not(:disabled) { opacity: .7; transform: scale(.95); }
+    .go-btn:disabled { opacity: .4; }
+
+    /* ── Scroll body ── */
+    .scroll-body {
+      position: relative;
+      z-index: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      /* push content below the fixed nav; calc'd in JS after mount */
+      padding-top: var(--nav-h, 108px);
+      padding-bottom: calc(var(--safe-bot) + 24px);
+      padding-left: var(--safe-l);
+      padding-right: var(--safe-r);
+      min-height: 100dvh;
+    }
+    .page-pad { padding: 0 16px; }
+
+    /* ── Hero landing ── */
+    .hero-landing {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 56px 24px 48px;
+      min-height: 52dvh;
+    }
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: rgba(79,172,254,.08);
+      border: 1px solid rgba(79,172,254,.2);
+      border-radius: 50px;
+      padding: 6px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 20px;
+    }
+    .hero-pill-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--grad); }
+    .hero-h1 {
+      font-size: clamp(26px, 8vw, 40px);
+      font-weight: 700;
+      letter-spacing: -.03em;
+      line-height: 1.08;
+      margin-bottom: 12px;
+    }
+    .hero-sub {
+      color: var(--text-2);
+      font-size: 15px;
+      line-height: 1.5;
+      max-width: 280px;
+    }
+
+    /* ── API key row ── */
+    .apikey-section {
+      margin: 0 16px 20px;
+    }
+    .apikey-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: 12px;
+      color: var(--text-2);
+      font-family: inherit;
+      font-size: 14px;
+      padding: 13px 16px;
+      width: 100%;
+      cursor: pointer;
+      text-align: left;
+      -webkit-tap-highlight-color: transparent;
+      transition: background .2s;
+    }
+    .apikey-toggle:active { background: var(--surface-hi); }
+    .at-label { flex: 1; }
+    .at-chevron { font-size: 11px; transition: transform .22s; opacity: .5; }
+    .apikey-toggle.open .at-chevron { transform: rotate(90deg); }
+    .apikey-body { display: none; margin-top: 8px; }
+    .apikey-body.show { display: block; animation: slideDown .22s ease; }
+    .key-row { display: flex; gap: 8px; }
+    .key-input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: 12px;
+      padding: 13px 14px;
+      color: var(--text);
+      font-family: inherit;
+      font-size: 14px;
+      outline: none;
+      -webkit-appearance: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .key-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79,172,254,.1);
+    }
+    .key-input::placeholder { color: var(--text-3); font-size: 13px; }
+    .key-vis {
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: 12px;
+      color: var(--text-2);
+      width: 48px; height: 48px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .key-vis:active { background: var(--surface-hi); }
+
+    /* ── Loading ── */
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 70px 0 50px;
+    }
+    .loading.show { display: block; animation: fadeIn .3s ease; }
+    .spin-wrap { position: relative; width: 56px; height: 56px; margin: 0 auto 20px; }
+    .spinner {
+      width: 56px; height: 56px;
+      border: 2px solid rgba(255,255,255,.05);
+      border-top-color: var(--accent);
+      border-right-color: var(--accent-2);
+      border-radius: 50%;
+      animation: spin .85s linear infinite;
+    }
+    .spin-glow {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: radial-gradient(circle, rgba(79,172,254,.18) 0%, transparent 70%);
+      animation: pulse 1.6s ease-in-out infinite;
+    }
+    .load-txt { color: var(--text-2); font-size: 14px; animation: pulse 1.6s ease-in-out infinite; }
+
+    /* ── Error ── */
+    .err-card {
+      display: none;
+      background: rgba(255,69,58,.07);
+      border: 1px solid rgba(255,69,58,.2);
+      border-radius: 20px;
+      padding: 24px;
+      text-align: center;
+      margin: 0 16px 20px;
+    }
+    .err-card.show { display: block; animation: fadeSlideUp .3s ease; }
+    .err-icon { font-size: 28px; margin-bottom: 10px; }
+    .err-title { font-size: 15px; font-weight: 600; color: var(--bad); margin-bottom: 6px; }
+    .err-msg { font-size: 13px; color: var(--text-2); line-height: 1.5; }
+
+    /* ── Result ── */
+    .result { display: none; padding: 0 16px; }
+    .result.show { display: block; animation: fadeSlideUp .4s ease; }
+
+    /* ── Car hero ── */
+    .car-hero {
+      background: var(--surface);
+      border: 1px solid var(--border-hi);
+      border-radius: 24px;
+      padding: 24px 20px 20px;
+      margin-bottom: 14px;
+      position: relative;
+      overflow: hidden;
+    }
+    .car-hero::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(79,172,254,.5), transparent);
+    }
+    .car-hero::after {
+      content: '';
+      position: absolute; top: -80px; right: -60px;
+      width: 220px; height: 220px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(79,172,254,.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .year-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      background: rgba(79,172,254,.1);
+      border: 1px solid rgba(79,172,254,.25);
+      border-radius: 50px;
+      padding: 4px 11px;
+      font-size: 11px; font-weight: 700;
+      color: var(--accent); letter-spacing: .06em; text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .car-name {
+      font-size: clamp(22px, 6vw, 36px);
+      font-weight: 700; letter-spacing: -.025em; line-height: 1.1;
+      margin-bottom: 5px;
+    }
+    .car-trim { color: var(--text-2); font-size: 14px; margin-bottom: 20px; }
+    .hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .hs {
+      background: rgba(255,255,255,.04);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 13px 8px;
+      text-align: center;
+    }
+    .hs-val {
+      font-size: clamp(15px, 4vw, 20px);
+      font-weight: 700; letter-spacing: -.02em;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 4px; line-height: 1.1;
+    }
+    .hs-lbl { font-size: 9px; color: var(--text-2); text-transform: uppercase; letter-spacing: .1em; }
+
+    /* ── Info cards ── */
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+    .grid1 { margin-bottom: 12px; }
+
+    .ic {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 18px 16px;
+    }
+    .ch { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+    .ci {
+      width: 32px; height: 32px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 15px;
+      background: linear-gradient(135deg, rgba(79,172,254,.12), rgba(167,139,250,.12));
+      border: 1px solid rgba(79,172,254,.18);
+      flex-shrink: 0;
+    }
+    .ct { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .12em; color: var(--text-2); }
+
+    .dr {
+      display: flex; justify-content: space-between; align-items: flex-start;
+      padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,.04); gap: 8px;
+    }
+    .dr:last-child { border-bottom: none; padding-bottom: 0; }
+    .dr:first-child { padding-top: 0; }
+    .dl { font-size: 12px; color: var(--text-2); flex-shrink: 0; }
+    .dv { font-size: 12px; font-weight: 600; color: var(--text); text-align: right; }
+
+    /* ── Price ── */
+    .price-lbl { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 3px; }
+    .price-big {
+      font-size: 24px; font-weight: 700; letter-spacing: -.025em;
+      background: var(--grad);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 12px;
+    }
+
+    /* ── Resale bars ── */
+    .resale-rows { display: flex; flex-direction: column; gap: 12px; }
+    .rr { display: flex; align-items: center; gap: 10px; }
+    .r-lbl { font-size: 11px; color: var(--text-2); width: 48px; flex-shrink: 0; }
+    .r-track { flex: 1; height: 5px; background: rgba(255,255,255,.06); border-radius: 50px; overflow: hidden; }
+    .r-fill { height: 100%; border-radius: 50px; background: var(--grad); width: 0%; transition: width .9s cubic-bezier(.22,1,.36,1); }
+    .r-val { font-size: 11px; font-weight: 600; color: var(--text); width: 60px; text-align: right; flex-shrink: 0; }
+
+    /* ── Lists ── */
+    .prob-list, .fact-list { list-style: none; }
+    .prob-list li, .fact-list li {
+      display: flex; align-items: flex-start; gap: 9px;
+      padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,.04);
+      font-size: 13px; color: var(--text-2); line-height: 1.55;
+    }
+    .prob-list li:last-child, .fact-list li:last-child { border-bottom: none; padding-bottom: 0; }
+    .prob-list li:first-child, .fact-list li:first-child { padding-top: 0; }
+    .pb { color: var(--warn); flex-shrink: 0; font-size: 12px; margin-top: 1px; }
+    .fb { flex-shrink: 0; font-size: 9px; margin-top: 3px;
+      background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* ── Haptic-ready active states ── */
+    .ic { transition: transform .12s ease; }
+    .ic:active { transform: scale(.98); }
+
+    /* ── Bottom spacer ── */
+    .bottom-spacer { height: 16px; }
+
+    /* ── Animations ── */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+    @keyframes fadeSlideUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes slideDown { from{opacity:0;transform:translateY(-7px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── Large screens (tablet / iPad) ── */
+    @media (min-width: 600px) {
+      .page-pad { padding: 0 24px; }
+      .result { padding: 0 24px; }
+      .apikey-section { margin: 0 24px 20px; }
+      .car-name { font-size: 40px; }
+      .hero-stats { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (min-width: 768px) {
+      .hero-landing { min-height: 40dvh; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Fixed nav bar -->
+  <nav class="navbar" id="navbar">
+    <div class="nav-inner">
+      <div class="nav-logo">
+        <div class="nav-dot"></div>
+        <span class="nav-name">CarLens</span>
+      </div>
+      <div class="nav-search-wrap">
+        <span class="nav-search-icon">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </span>
+        <input
+          type="search"
+          class="nav-search"
+          id="searchInput"
+          placeholder='e.g. "2024 Lambo Urus S"'
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="none"
+          spellcheck="false"
+          enterkeyhint="search"
+        />
+      </div>
+      <button class="go-btn" id="goBtn">Go</button>
+    </div>
+  </nav>
+
+  <!-- Scroll area -->
+  <div class="scroll-body" id="scrollBody">
+
+    <!-- Landing hero -->
+    <div class="hero-landing" id="heroLanding">
+      <div class="hero-pill"><div class="hero-pill-dot"></div> AI-Powered</div>
+      <h1 class="hero-h1">Know Any Car<br>Inside &amp; Out</h1>
+      <p class="hero-sub">Search any vehicle — year, make, model — and get a full AI-generated spec sheet instantly.</p>
+    </div>
+
+    <!-- API Key -->
+    <div class="apikey-section">
+      <button class="apikey-toggle" id="keyToggle">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="5"/><line x1="12" y1="11.5" x2="22" y2="2"/><line x1="19" y1="2" x2="22" y2="5"/><line x1="16" y1="5" x2="18.5" y2="7.5"/></svg>
+        <span class="at-label">Anthropic API Key</span>
+        <span class="at-chevron">›</span>
+      </button>
+      <div class="apikey-body" id="keyBody">
+        <div class="key-row">
+          <input
+            type="password"
+            class="key-input"
+            id="keyInput"
+            placeholder="sk-ant-…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <button class="key-vis" id="keyVis" aria-label="Show/hide key">
+            <svg id="eyeIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="loading" id="loading">
+      <div class="spin-wrap">
+        <div class="spinner"></div>
+        <div class="spin-glow"></div>
+      </div>
+      <div class="load-txt" id="loadTxt">Analyzing vehicle data…</div>
+    </div>
+
+    <!-- Error -->
+    <div class="err-card" id="errCard">
+      <div class="err-icon">⚡</div>
+      <div class="err-title">Something went wrong</div>
+      <div class="err-msg" id="errMsg">Please try again.</div>
+    </div>
+
+    <!-- Result -->
+    <div class="result" id="result">
+
+      <!-- Hero card -->
+      <div class="car-hero">
+        <div class="year-badge">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span id="rYear"></span>
+        </div>
+        <div class="car-name" id="rName"></div>
+        <div class="car-trim" id="rTrim"></div>
+        <div class="hero-stats">
+          <div class="hs"><div class="hs-val" id="rHp">—</div><div class="hs-lbl">Horsepower</div></div>
+          <div class="hs"><div class="hs-val" id="rZero">—</div><div class="hs-lbl">0–60 mph</div></div>
+          <div class="hs"><div class="hs-val" id="rSpeed">—</div><div class="hs-lbl">Top Speed</div></div>
+        </div>
+      </div>
+
+      <!-- Engine + Performance -->
+      <div class="grid2">
+        <div class="ic">
+          <div class="ch"><div class="ci">🔧</div><div class="ct">Engine</div></div>
+          <div class="dr"><span class="dl">Displacement</span><span class="dv" id="rDisp">—</span></div>
+          <div class="dr"><span class="dl">Config</span><span class="dv" id="rCyl">—</span></div>
+          <div class="dr"><span class="dl">Power</span><span class="dv" id="rHpFull">—</span></div>
+          <div class="dr"><span class="dl">Torque</span><span class="dv" id="rTorque">—</span></div>
+        </div>
+        <div class="ic">
+          <div class="ch"><div class="ci">⚡</div><div class="ct">Performance</div></div>
+          <div class="dr"><span class="dl">0–60</span><span class="dv" id="rZ60">—</span></div>
+          <div class="dr"><span class="dl">Top Speed</span><span class="dv" id="rTopSpd">—</span></div>
+          <div class="dr"><span class="dl">¼ Mile</span><span class="dv" id="rQmi">—</span></div>
+          <div class="dr"><span class="dl">Drive</span><span class="dv" id="rDrivetrain">—</span></div>
+        </div>
+      </div>
+
+      <!-- Drivetrain + Efficiency -->
+      <div class="grid2">
+        <div class="ic">
+          <div class="ch"><div class="ci">⚙️</div><div class="ct">Drivetrain</div></div>
+          <div class="dr"><span class="dl">Gearbox</span><span class="dv" id="rTrans">—</span></div>
+          <div class="dr"><span class="dl">Drive</span><span class="dv" id="rDrive">—</span></div>
+          <div class="dr"><span class="dl">Fuel</span><span class="dv" id="rFuel">—</span></div>
+        </div>
+        <div class="ic">
+          <div class="ch"><div class="ci">⛽</div><div class="ct">Efficiency</div></div>
+          <div class="dr"><span class="dl">City</span><span class="dv" id="rCity">—</span></div>
+          <div class="dr"><span class="dl">Highway</span><span class="dv" id="rHwy">—</span></div>
+          <div class="dr"><span class="dl">Combined</span><span class="dv" id="rCmb">—</span></div>
+        </div>
+      </div>
+
+      <!-- Dimensions + Safety -->
+      <div class="grid2">
+        <div class="ic">
+          <div class="ch"><div class="ci">📐</div><div class="ct">Dimensions</div></div>
+          <div class="dr"><span class="dl">Length</span><span class="dv" id="rLen">—</span></div>
+          <div class="dr"><span class="dl">Width</span><span class="dv" id="rWid">—</span></div>
+          <div class="dr"><span class="dl">Height</span><span class="dv" id="rHgt">—</span></div>
+          <div class="dr"><span class="dl">Wheelbase</span><span class="dv" id="rWb">—</span></div>
+          <div class="dr"><span class="dl">Weight</span><span class="dv" id="rWgt">—</span></div>
+        </div>
+        <div class="ic">
+          <div class="ch"><div class="ci">🛡️</div><div class="ct">Safety</div></div>
+          <div class="dr"><span class="dl">Seats</span><span class="dv" id="rSeats">—</span></div>
+          <div class="dr"><span class="dl">Reliability</span><span class="dv" id="rReli">—</span></div>
+          <div class="dr"><span class="dl">NHTSA</span><span class="dv" id="rNhtsa">—</span></div>
+          <div class="dr"><span class="dl">IIHS</span><span class="dv" id="rIihs">—</span></div>
+        </div>
+      </div>
+
+      <!-- Pricing + Costs -->
+      <div class="grid2">
+        <div class="ic">
+          <div class="ch"><div class="ci">💰</div><div class="ct">Pricing</div></div>
+          <div class="price-lbl">Starting MSRP</div>
+          <div class="price-big" id="rMsrp">—</div>
+          <div class="dr"><span class="dl">Market</span><span class="dv" id="rMktVal">—</span></div>
+          <div class="dr"><span class="dl">Deprec.</span><span class="dv" id="rDepr">—</span></div>
+        </div>
+        <div class="ic">
+          <div class="ch"><div class="ci">📊</div><div class="ct">Annual Costs</div></div>
+          <div class="dr"><span class="dl">Maintenance</span><span class="dv" id="rMaint">—</span></div>
+          <div class="dr"><span class="dl">Insurance</span><span class="dv" id="rIns">—</span></div>
+        </div>
+      </div>
+
+      <!-- Resale -->
+      <div class="grid1 ic">
+        <div class="ch"><div class="ci">📈</div><div class="ct">Resale Value Retention</div></div>
+        <div class="resale-rows">
+          <div class="rr">
+            <span class="r-lbl">3 Years</span>
+            <div class="r-track"><div class="r-fill" id="rFill3"></div></div>
+            <span class="r-val" id="rResale3">—</span>
+          </div>
+          <div class="rr">
+            <span class="r-lbl">5 Years</span>
+            <div class="r-track"><div class="r-fill" id="rFill5"></div></div>
+            <span class="r-val" id="rResale5">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Known Issues -->
+      <div class="grid1 ic" style="margin-top:12px">
+        <div class="ch"><div class="ci">⚠️</div><div class="ct">Known Issues</div></div>
+        <ul class="prob-list" id="rProbs"></ul>
+      </div>
+
+      <!-- Fun Facts -->
+      <div class="grid1 ic" style="margin-top:12px">
+        <div class="ch"><div class="ci">✨</div><div class="ct">Legacy &amp; Fun Facts</div></div>
+        <ul class="fact-list" id="rFacts"></ul>
+      </div>
+
+    </div><!-- /result -->
+
+    <div class="bottom-spacer"></div>
+  </div><!-- /scroll-body -->
+
+  <!-- Capacitor runtime (injected by native shell; safe to omit in browser) -->
+  <script>
+    // Load Capacitor if running inside native shell
+    if (typeof window !== 'undefined' && window.Capacitor) {
+      const { StatusBar } = window.Capacitor.Plugins;
+      if (StatusBar) {
+        StatusBar.setStyle({ style: 'Dark' }).catch(() => {});
+        StatusBar.setBackgroundColor({ color: '#07070f' }).catch(() => {});
+      }
+    }
+  </script>
+
+  <script>
+  (function () {
+    'use strict';
+
+    const $ = id => document.getElementById(id);
+
+    /* ── Nav height offset ── */
+    function updateNavHeight() {
+      const h = $('navbar').getBoundingClientRect().height;
+      document.documentElement.style.setProperty('--nav-h', h + 'px');
+      $('scrollBody').style.paddingTop = h + 'px';
+    }
+    updateNavHeight();
+    window.addEventListener('resize', updateNavHeight);
+
+    /* ── Refs ── */
+    const keyToggle   = $('keyToggle');
+    const keyBody     = $('keyBody');
+    const keyInput    = $('keyInput');
+    const keyVis      = $('keyVis');
+    const searchInput = $('searchInput');
+    const goBtn       = $('goBtn');
+    const loading     = $('loading');
+    const loadTxt     = $('loadTxt');
+    const errCard     = $('errCard');
+    const errMsg      = $('errMsg');
+    const result      = $('result');
+    const heroLanding = $('heroLanding');
+    const apikeySection = document.querySelector('.apikey-section');
+
+    /* ── API key panel ── */
+    keyToggle.addEventListener('click', () => {
+      keyToggle.classList.toggle('open');
+      keyBody.classList.toggle('show');
+      if (keyBody.classList.contains('show')) setTimeout(() => keyInput.focus(), 50);
+    });
+
+    const eyeOpen  = `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+    const eyeSlash = `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>`;
+    keyVis.addEventListener('click', () => {
+      const isPw = keyInput.type === 'password';
+      keyInput.type = isPw ? 'text' : 'password';
+      $('eyeIcon').innerHTML = isPw ? eyeSlash : eyeOpen;
+    });
+
+    /* ── Search triggers ── */
+    searchInput.addEventListener('keydown', e => { if (e.key === 'Enter') { searchInput.blur(); lookupCar(); } });
+    goBtn.addEventListener('click', lookupCar);
+
+    /* ── Helpers ── */
+    function set(id, val, fb = '—') {
+      const el = $(id);
+      if (el) el.textContent = (val && String(val).trim()) ? val : fb;
+    }
+
+    function showErr(msg) {
+      loading.classList.remove('show');
+      errCard.classList.add('show');
+      errMsg.textContent = msg;
+      result.classList.remove('show');
+    }
+
+    function hideAll() {
+      loading.classList.remove('show');
+      errCard.classList.remove('show');
+      result.classList.remove('show');
+    }
+
+    const loadMsgs = [
+      'Analyzing vehicle data…',
+      'Consulting the oracle…',
+      'Processing specifications…',
+      'Fetching performance metrics…',
+      'Compiling car intelligence…',
+      'Cross-referencing databases…'
+    ];
+    let loadTimer = null;
+
+    function startLoading() {
+      hideAll();
+      heroLanding.style.display = 'none';
+      apikeySection.style.display = 'none';
+      loading.classList.add('show');
+      let i = 0;
+      loadTxt.textContent = loadMsgs[0];
+      loadTimer = setInterval(() => { i = (i + 1) % loadMsgs.length; loadTxt.textContent = loadMsgs[i]; }, 1300);
+    }
+
+    function stopLoading() {
+      clearInterval(loadTimer);
+      loading.classList.remove('show');
+    }
+
+    function pctFromStr(str) {
+      if (!str) return 55;
+      const m = str.match(/(\d+)\s*%/);
+      if (m) return Math.min(100, parseInt(m[1]));
+      const n = str.match(/(\d+)/);
+      return n ? Math.min(100, parseInt(n[1])) : 55;
+    }
+
+    function renderResult(d) {
+      set('rYear', d.year);
+      set('rName', [d.make, d.model].filter(Boolean).join(' '));
+      set('rTrim', d.trim || 'Base / Standard Trim');
+      set('rHp', d.engine?.horsepower);
+      set('rZero', d.performance?.zero_to_sixty);
+      set('rSpeed', d.performance?.top_speed);
+      set('rDisp', d.engine?.displacement);
+      set('rCyl', d.engine?.cylinders);
+      set('rHpFull', d.engine?.horsepower);
+      set('rTorque', d.engine?.torque);
+      set('rZ60', d.performance?.zero_to_sixty);
+      set('rTopSpd', d.performance?.top_speed);
+      set('rQmi', d.performance?.quarter_mile);
+      set('rDrivetrain', d.drivetrain);
+      set('rTrans', d.transmission);
+      set('rDrive', d.drivetrain);
+      set('rFuel', d.fuel_type);
+
+      const city = d.mpg?.city, hwy = d.mpg?.highway;
+      set('rCity', city ? city + ' mpg' : '—');
+      set('rHwy', hwy ? hwy + ' mpg' : '—');
+      const cmb = d.mpg?.combined || (city && hwy ? Math.round((parseFloat(city) + parseFloat(hwy)) / 2) + ' mpg' : null);
+      set('rCmb', cmb || '—');
+
+      set('rLen', d.dimensions?.length);
+      set('rWid', d.dimensions?.width);
+      set('rHgt', d.dimensions?.height);
+      set('rWb', d.dimensions?.wheelbase);
+      set('rWgt', d.dimensions?.weight);
+      set('rSeats', d.seating_capacity ? d.seating_capacity + ' passengers' : '—');
+      set('rReli', d.reliability_score);
+      set('rNhtsa', d.safety_ratings?.nhtsa);
+      set('rIihs', d.safety_ratings?.iihs);
+      set('rMsrp', d.msrp);
+      set('rMktVal', d.market_value_range);
+      set('rDepr', d.depreciation_rate);
+      set('rMaint', d.maintenance_cost_annual);
+      set('rIns', d.insurance_cost_estimate);
+
+      const r3 = d.resale_value?.three_years, r5 = d.resale_value?.five_years;
+      set('rResale3', r3);
+      set('rResale5', r5);
+      setTimeout(() => {
+        $('rFill3').style.width = pctFromStr(r3) + '%';
+        $('rFill5').style.width = pctFromStr(r5) + '%';
+      }, 80);
+
+      const probEl = $('rProbs');
+      probEl.innerHTML = '';
+      const probs = Array.isArray(d.common_problems) ? d.common_problems : [];
+      if (probs.length === 0) {
+        probEl.innerHTML = '<li><span class="pb" style="color:var(--ok)">✓</span> No major known issues reported</li>';
+      } else {
+        probs.forEach(p => {
+          const li = document.createElement('li');
+          li.innerHTML = '<span class="pb">⚠</span>';
+          li.appendChild(document.createTextNode(p));
+          probEl.appendChild(li);
+        });
+      }
+
+      const factEl = $('rFacts');
+      factEl.innerHTML = '';
+      (Array.isArray(d.fun_facts) ? d.fun_facts : []).forEach(f => {
+        const li = document.createElement('li');
+        li.innerHTML = '<span class="fb">✦</span>';
+        li.appendChild(document.createTextNode(f));
+        factEl.appendChild(li);
+      });
+
+      stopLoading();
+      result.classList.add('show');
+      $('scrollBody').scrollTo({ top: 0, behavior: 'smooth' });
+
+      /* Haptic feedback on supported devices */
+      if (navigator.vibrate) navigator.vibrate(10);
+    }
+
+    /* ── Main lookup ── */
+    async function lookupCar() {
+      const query = searchInput.value.trim();
+      const key   = keyInput.value.trim();
+
+      if (!query) { searchInput.focus(); return; }
+
+      if (!key) {
+        keyToggle.classList.add('open');
+        keyBody.classList.add('show');
+        heroLanding.style.display = '';
+        apikeySection.style.display = '';
+        setTimeout(() => keyInput.focus(), 50);
+        showErr('Please enter your Anthropic API key to continue.');
+        return;
+      }
+
+      goBtn.disabled = true;
+      startLoading();
+
+      const prompt = `You are an expert automotive database. The user searched for: "${query}"
+
+Identify the most likely car and return ONLY a valid JSON object — no markdown fences, no explanation — with this exact structure:
+
+{
+  "make": "Manufacturer name",
+  "model": "Model name",
+  "year": "Year as string",
+  "trim": "Most common or base trim level",
+  "engine": {
+    "displacement": "e.g. 4.0L twin-turbo V8  |  N/A for electric",
+    "cylinders": "e.g. V8  |  Electric Motor(s)",
+    "horsepower": "e.g. 641 hp",
+    "torque": "e.g. 627 lb-ft"
+  },
+  "performance": {
+    "zero_to_sixty": "e.g. 3.6 sec",
+    "top_speed": "e.g. 190 mph",
+    "quarter_mile": "e.g. 11.5 sec @ 124 mph"
+  },
+  "transmission": "e.g. 8-speed automatic",
+  "drivetrain": "e.g. AWD",
+  "fuel_type": "e.g. Premium Gasoline  |  Electric  |  Plug-in Hybrid",
+  "mpg": {
+    "city": "numeric only e.g. 17  |  N/A for electric",
+    "highway": "numeric only e.g. 22  |  N/A for electric",
+    "combined": "e.g. 19 mpg  |  or MPGe for EVs"
+  },
+  "dimensions": {
+    "length": "e.g. 201.9 in",
+    "width": "e.g. 78.5 in",
+    "height": "e.g. 65.3 in",
+    "wheelbase": "e.g. 118.4 in",
+    "weight": "e.g. 4,844 lbs"
+  },
+  "seating_capacity": "5",
+  "msrp": "e.g. $229,495",
+  "market_value_range": "e.g. $215,000 – $260,000",
+  "depreciation_rate": "e.g. ~14% per year (first 3 years)",
+  "reliability_score": "e.g. 3.5/5 (J.D. Power)",
+  "safety_ratings": {
+    "nhtsa": "e.g. 5-Star Overall",
+    "iihs": "e.g. Top Safety Pick+"
+  },
+  "common_problems": [
+    "Known issue 1",
+    "Known issue 2",
+    "Known issue 3"
+  ],
+  "maintenance_cost_annual": "e.g. ~$1,800/year",
+  "insurance_cost_estimate": "e.g. ~$3,400/year",
+  "resale_value": {
+    "three_years": "62% of original value (~$142,000)",
+    "five_years": "45% of original value (~$103,000)"
+  },
+  "fun_facts": [
+    "Interesting legacy or production fact",
+    "Interesting design or engineering detail",
+    "Notable record, award, or cultural impact",
+    "Surprising or lesser-known fact"
+  ]
+}
+
+If the query is not a car, return: {"error": true, "message": "Reason"}
+Use real, accurate data. Return ONLY the JSON.`;
+
+      try {
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': key,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 1800,
+            messages: [{ role: 'user', content: prompt }]
+          })
+        });
+
+        if (!res.ok) {
+          let detail = `HTTP ${res.status}`;
+          try { const j = await res.json(); detail = j?.error?.message || detail; } catch (_) {}
+          if (res.status === 401)      showErr('Invalid API key. Check your Anthropic API key and try again.');
+          else if (res.status === 429) showErr('Rate limit reached. Wait a moment and try again.');
+          else                         showErr('API error: ' + detail);
+          apikeySection.style.display = '';
+          goBtn.disabled = false;
+          return;
+        }
+
+        const json    = await res.json();
+        const rawText = json?.content?.[0]?.text || '';
+
+        let carData;
+        try {
+          const fenced = rawText.match(/```(?:json)?\s*([\s\S]*?)```/);
+          const jsonStr = fenced ? fenced[1] : (rawText.match(/(\{[\s\S]*\})/)?.[1] || rawText);
+          carData = JSON.parse(jsonStr.trim());
+        } catch (_) {
+          showErr('Could not parse response. Try rephrasing your search.');
+          apikeySection.style.display = '';
+          goBtn.disabled = false;
+          return;
+        }
+
+        if (carData.error) {
+          showErr(carData.message || 'Car not recognized. Try a more specific query.');
+          apikeySection.style.display = '';
+          goBtn.disabled = false;
+          return;
+        }
+
+        renderResult(carData);
+
+      } catch (err) {
+        stopLoading();
+        showErr(err instanceof TypeError ? 'Network error. Check your connection.' : 'Unexpected error: ' + err.message);
+        apikeySection.style.display = '';
+        heroLanding.style.display = '';
+      }
+
+      goBtn.disabled = false;
+    }
+  })();
+  </script>
+</body>
+</html>

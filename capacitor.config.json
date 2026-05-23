@@ -1,0 +1,35 @@
+{
+  "appId": "com.carlens.app",
+  "appName": "CarLens",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "StatusBar": {
+      "style": "Dark",
+      "backgroundColor": "#07070f",
+      "overlaysWebView": true
+    },
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "backgroundColor": "#07070f",
+      "showSpinner": false
+    },
+    "Keyboard": {
+      "resize": "body",
+      "style": "dark",
+      "resizeOnFullScreen": true
+    }
+  },
+  "ios": {
+    "contentInset": "always",
+    "allowsLinkPreview": false,
+    "scrollEnabled": true
+  },
+  "android": {
+    "allowMixedContent": false,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}
